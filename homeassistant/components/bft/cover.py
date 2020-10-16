@@ -1,7 +1,6 @@
 """Platform for the BFT cover component."""
 from datetime import timedelta
 import logging
-
 import dns_cache
 import requests
 import voluptuous as vol
@@ -344,4 +343,3 @@ class BftCover(CoverEntity):
         _LOGGER.debug(url)
         ret = requests.get(url, timeout=10, headers=api_call_headers)
         return ret.json()
-
