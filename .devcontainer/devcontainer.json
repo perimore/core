@@ -29,9 +29,9 @@
       "!include_dir_merge_list scalar",
       "!include_dir_merge_named scalar"
     ],
-    "mounts": [
+  },
+  "mounts": [
     // Custom configuration directory
     "source=${localEnv:HOME}/Documents/HomeAssistant/config,target=${containerWorkspaceFolder}/config,type=bind",
   ]
-  }
 }
