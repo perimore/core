@@ -1,23 +1,32 @@
 """Platform for the BFT cover component."""
+from datetime import timedelta
 import logging
 
 import dns_cache
 import requests
 import voluptuous as vol
 
-import homeassistant.helpers.config_validation as cv
-from homeassistant.components.cover import CoverDevice, PLATFORM_SCHEMA
-from homeassistant.helpers.event import track_utc_time_change
+from homeassistant.components.cover import (
+    DEVICE_CLASS_GATE,
+    PLATFORM_SCHEMA,
+    SUPPORT_CLOSE,
+    SUPPORT_OPEN,
+    SUPPORT_STOP,
+    CoverEntity,
+)
 from homeassistant.const import (
-    CONF_DEVICE,
-    CONF_USERNAME,
-    CONF_PASSWORD,
     CONF_ACCESS_TOKEN,
+    CONF_COVERS,
+    CONF_DEVICE,
     CONF_NAME,
+    CONF_PASSWORD,
+    CONF_USERNAME,
     STATE_CLOSED,
     STATE_OPEN,
-    CONF_COVERS,
 )
+import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.event import track_utc_time_change
+from homeassistant.util import Throttle
 
 dns_cache.override_system_resolver()
 
@@ -48,6 +57,8 @@ COVER_SCHEMA = vol.Schema(
         vol.Optional(CONF_USERNAME): cv.string,
     }
 )
+
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {vol.Required(CONF_COVERS): cv.schema_with_slug_keys(COVER_SCHEMA)}
@@ -101,7 +112,7 @@ def _get_gate_status(status):
         return STATES_MAP.get("moving", None)
 
 
-class BftCover(CoverDevice):
+class BftCover(CoverEntity):
     """Representation of a BFT cover."""
 
     def __init__(self, hass, args):
@@ -192,7 +203,12 @@ class BftCover(CoverDevice):
     @property
     def device_class(self):
         """Return the class of this device, from component DEVICE_CLASSES."""
-        return "garage"
+        return DEVICE_CLASS_GATE
+
+    @property
+    def supported_features(self):
+        """Flag supported features."""
+        return SUPPORT_OPEN | SUPPORT_CLOSE | SUPPORT_STOP
 
     def get_token(self):
         """Get new token for usage during this session."""
@@ -201,7 +217,7 @@ class BftCover(CoverDevice):
             "username": self._username,
             "password": self._password,
         }
-        url = "{}/oauth/token".format(self.particle_url)
+        url = f"{self.particle_url}/oauth/token"
         ret = requests.post(url, auth=("particle", "particle"), data=args, timeout=10)
 
         try:
@@ -223,7 +239,7 @@ class BftCover(CoverDevice):
 
     def remove_token(self):
         """Remove authorization token from API."""
-        url = "{}/v1/access_tokens/{}".format(self.particle_url, self.access_token)
+        url = f"{self.particle_url}/v1/access_tokens/{self.access_token}"
         ret = requests.delete(url, auth=(self._username, self._password), timeout=10)
         return ret.text
 
@@ -296,6 +312,7 @@ class BftCover(CoverDevice):
             )
             self._state = STATE_OFFLINE
 
+    @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
         """Get updated status from API."""
         try:
@@ -323,7 +340,8 @@ class BftCover(CoverDevice):
     def _get_command(self, func):
         """Get latest status."""
         api_call_headers = {"Authorization": "Bearer " + self.access_token}
-        url = "{}/{}/execute/{}".format(self.dispatcher_api_url, self.device_id, func)
+        url = f"{self.dispatcher_api_url}/{self.device_id}/execute/{func}"
         _LOGGER.debug(url)
         ret = requests.get(url, timeout=10, headers=api_call_headers)
         return ret.json()
+
