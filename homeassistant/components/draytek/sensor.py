@@ -9,11 +9,18 @@ import voluptuous as vol
 from homeassistant.components.sensor import PLATFORM_SCHEMA
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    CONF_NAME,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=30)
+
+DEFAULT_NAME = "Draytek"
 
 ATTRIBUTE_DS_ACTUAL = "dsactual"
 ATTRIBUTE_US_ACTUAL = "usactual"
@@ -37,14 +44,24 @@ ATTRIBUTES = {
     ATTRIBUTE_US_ATTAINABLE: ("usattainable", "Upstream Attainable", None, None),
     ATTRIBUTE_DS_PATHMODE: ("dspathmode", "Downstream Path Mode", None, None),
     ATTRIBUTE_US_PATHMODE: ("uspathmode", "Upstream Path Mode", None, None),
-    ATTRIBUTE_DS_INTERLEAVE_DEPTH: ("dsinterleavedepth", "Downstream Interleave Depth", None, None),
-    ATTRIBUTE_US_INTERLEAVE_DEPTH: ("usinterleavedepth", "Upstream Interleave Depth", None, None),
+    ATTRIBUTE_DS_INTERLEAVE_DEPTH: (
+        "dsinterleavedepth",
+        "Downstream Interleave Depth",
+        None,
+        None,
+    ),
+    ATTRIBUTE_US_INTERLEAVE_DEPTH: (
+        "usinterleavedepth",
+        "Upstream Interleave Depth",
+        None,
+        None,
+    ),
     ATTRIBUTE_ATTENUATION: ("attenuation", "Attenuation", None, None),
     ATTRIBUTE_SNR_MARGIN: ("snrmargin", "SNR Margin", None, None),
     ATTRIBUTE_UPTIME: ("uptime", "Uptime", None, None),
     ATTRIBUTE_CRC: ("crc", "CRC Errors", None, None),
     ATTRIBUTE_FEC: ("fec", "FEC Corrected", None, None),
-    ATTRIBUTE_HEC: ("hec", "HEC", None, None)
+    ATTRIBUTE_HEC: ("hec", "HEC", None, None),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -52,6 +69,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     }
 )
 
@@ -59,6 +77,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Draytek sensors."""
     async_add_entities([DraytekSensor(config)])
+
 
 class DraytekSensor(Entity):
     """Representation of a Dovado sensor."""
@@ -68,6 +87,7 @@ class DraytekSensor(Entity):
         self.host = config[CONF_HOST]
         self.username = config[CONF_USERNAME]
         self.password = config[CONF_PASSWORD]
+        self._name = config[CONF_NAME]
 
         self._state = None
         self._attributes = {}
@@ -77,9 +97,9 @@ class DraytekSensor(Entity):
         try:
             tn = telnetlib.Telnet(self.host)
             tn.read_until(b"Account:")
-            tn.write(self.username.encode('ascii') + b"\n")
+            tn.write(self.username.encode("ascii") + b"\n")
             tn.read_until(b"Password:")
-            tn.write(self.password.encode('ascii') + b"\n")
+            tn.write(self.password.encode("ascii") + b"\n")
             tn.read_until(b"Vigor> ")
             tn.write(b"vdsl status\n")
             output = str(tn.read_until(b"Vigor> "))
@@ -131,7 +151,7 @@ class DraytekSensor(Entity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return "Draytek"
+        return self._name
 
     @property
     def state(self):
@@ -147,4 +167,3 @@ class DraytekSensor(Entity):
     def device_state_attributes(self):
         """Return the state attributes."""
         return self._attributes
-

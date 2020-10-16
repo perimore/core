@@ -2,7 +2,7 @@
   "domain": "bft",
   "name": "BFT",
   "documentation": "https://www.home-assistant.io/components/bft",
-  "requirements": [],
+  "requirements": ["dns_cache"],
   "dependencies": [],
   "codeowners": []
 }
