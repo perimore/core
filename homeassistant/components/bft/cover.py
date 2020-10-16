@@ -343,4 +343,3 @@ class BftCover(CoverEntity):
         _LOGGER.debug(url)
         ret = requests.get(url, timeout=10, headers=api_call_headers)
         return ret.json()
-
